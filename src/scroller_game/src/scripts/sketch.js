@@ -22,20 +22,30 @@ export default function sketch(p5){
     const constPath = "http://127.0.0.1:3001/src/scroller_game/src/assets"
     let playerSprite = p5.loadImage(constPath + "/player/sprites/player1.png")
     let obstacleSprite = p5.loadImage(constPath + "/asteroids/asteroid.png")
+    let projectileSprite = p5.loadImage(constPath + "/shoot/shoot1.png")
 
     class Agent {
-        constructor(initialPosition, mapping, speed, width, height, color) {
+        constructor(initialPosition, mapping, speed, width, height, color, agentShootInterval, agentProjectileSpeed) {
             this.position = initialPosition;
             this.mapping = mapping;
             this.speed = speed;
             this.width = width;
             this.height = height - 25;
             this.color = color;
+            this.agentShootInterval = agentShootInterval;
+            this.agentProjectileSpeed = agentProjectileSpeed;
+            this.hasShot = false;
+            this.lastShot = 0; 
+            this.projectileWidth = 57
+            this.projectileHeight = 18
+            this.healthHeight = 7
+            this.healthYOffset = 15
+            this.healthWidth = this.width
         }
     
         update(actionList) {
             var deltaLocation = delta_from_action_and_mapping(actionList, this.mapping)
-            deltaLocation.mult(this.speed)
+            deltaLocation.mult(this.speed)  
             this.position.add(deltaLocation);
             for (var key in Direction) {
             currentActionDict[key] = false
@@ -46,8 +56,33 @@ export default function sketch(p5){
             p5.fill(this.color)
             p5.rect(this.position.x, this.position.y, this.width, this.height)
             p5.image(playerSprite, this.position.x, this.position.y-10, this.width, this.height + 25);
+
+            p5.fill(p5.color("green"))
+            p5.rect(this.position.x, this.position.y - this.healthYOffset, this.healthWidth, this.healthHeight)
+            if(!this.hasShot) {
+                this.shoot();
+                this.hasShot = true;
+                this.lastShot = p5.millis();
+            }
+            else {
+                if(p5.millis() - this.lastShot > this.agentShootInterval) {
+                    this.hasShot = false;
+                }
+            }
+        }
+
+        shoot() {
+            newProjectile(p5.createVector(this.position.x, this.position.y+this.height/2-this.projectileHeight/2), this.agentProjectileSpeed, this.projectileWidth, this.projectileHeight)
+        }
+
+        takeDamage(dmg) {
+            this.healthWidth -= dmg;
         }
         
+        isDead() {
+            return this.healthWidth <= 0 ? true : false
+        }
+
         isOutOfCanvas() {
             if (this.position.x > worldWidth ||
             this.position.x < 0 ||
@@ -66,6 +101,36 @@ export default function sketch(p5){
                                     obstacle.width, obstacle.height);
         }
     }
+
+    class Projectile {
+        constructor(initialPosition, speed, width, height) {
+            this.position = initialPosition;
+            this.speed = speed;
+            this.width = width;
+            this.height = height;
+        }
+
+        update() {
+            this.position.add(this.speed);  
+        }
+
+        draw() {
+            p5.fill(p5.color(255, 0, 0, 255))
+            p5.rect(this.position.x, this.position.y, this.width, this.height)
+            p5.image(projectileSprite, this.position.x, this.position.y, this.width, this.height);
+        }
+        
+        isOutOfCanvas() {
+            if (this.position.x > worldWidth ||
+            this.position.x < 0 - this.width ||
+            this.position.y > worldHeight ||
+            this.position.y < 0) {
+            return true
+            } else {
+            return false
+            }
+        }
+    }
       
 
     class Obstacle {
@@ -76,7 +141,7 @@ export default function sketch(p5){
             this.height = height;
             this.color = color;
         }
-        
+
         update() {
             this.position.add(this.speed);  
         }
@@ -116,19 +181,23 @@ export default function sketch(p5){
     var allMapping = []
     var hypotheses = []
     var obstacles = []
+    var projectiles= []
     
     const agentSpeed = 5
-    const agentWidth = 78
+    const agentWidth = 80
     const agentHeight = 63
+    const agentShootInterval = 500 //ms
+    const agentProjectileSpeed = 10
     
     const nObstacles = 10
     const obstaclSizeMin = 10
     const obstacleSizeMax = 30
     const obstacleSpeedMin = 2
     const obstacleSpeedMax = 4
-    console.log("GLOBAl")
 
-    let img;
+    p5.updateWithProps = props => {
+    };
+
     p5.setup = () => {
         p5.createCanvas(worldWidth, worldHeight );
         p5.rectMode(p5.CORNER); // for collision library    
@@ -142,10 +211,11 @@ export default function sketch(p5){
         allMapping.push(...permutations([vector_up2, vector_down2]))
       
         allMapping.forEach(function(mapping, index) {
-          var agent = new Agent(p5.createVector(worldWidth/8, worldHeight/2), mapping, agentSpeed, agentWidth, agentHeight, agentColor())
+          var agent = new Agent(p5.createVector(worldWidth/8, worldHeight/2), mapping, agentSpeed, agentWidth, agentHeight, agentColor(), agentShootInterval, agentProjectileSpeed)
           hypotheses.push(agent)
         });
         
+
         for (const x of Array(nObstacles).keys()) {
             newObstacle();
         }
@@ -160,6 +230,11 @@ export default function sketch(p5){
         var obstacle = new Obstacle(initialPosition, initialSpeed, obstacleSize, obstacleSize, p5.color('black'))
         obstacles.push(obstacle)
     }
+    
+    function newProjectile(position, speed, width, height) {
+        var projectile = new Projectile(position, speed, width, height)
+        projectiles.push(projectile)
+    }
 
     p5.draw = () => {
         p5.background(225);
@@ -169,27 +244,39 @@ export default function sketch(p5){
             obstacle.update()
             obstacle.draw()
         });
-      
+
         hypotheses.forEach(function(hyp, index) {
-          hyp.update(currentActionList)
+            hyp.update(currentActionList)
+        });
+
+        projectiles.forEach(function(proj, index) {
+            proj.update()
+            proj.draw()
         });
       
         hypotheses = hypotheses.filter(hyp => !hyp.isOutOfCanvas())
+        hypotheses = hypotheses.filter(hyp => !hyp.isDead())
       
         obstacles.forEach(function(obs, index) {});
         obstacles = obstacles.filter(obs => !obs.isOutOfCanvas());
       
         if (obstacles.length < nObstacles) {
-          newObstacle();
+            newObstacle();
         }
-      
+
         obstacles.forEach(function(obstacle, index) {
-          hypotheses = hypotheses.filter(hyp => !hyp.isCollidingWithObstacle(obstacle))
+            var hitHypo = hypotheses.filter(hyp => hyp.isCollidingWithObstacle(obstacle));
+            hitHypo.forEach((hyp,) => {hyp.takeDamage(20)});
+            if (hitHypo.length > 0) {
+                obstacles.splice(index, 1);
+            }
         });
       
         hypotheses.forEach(function(hyp, index) {
-          hyp.draw()
+            hyp.draw()
         });
+
+
     }
     
     function randomColor() {

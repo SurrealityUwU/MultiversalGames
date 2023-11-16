@@ -229,7 +229,7 @@ export default function sketch(p5){
         var initialSpeed = p5.createVector(obstacleSpeed*(Math.random() * -0.5  - 0.5) , 0)
         var obstacle = new Obstacle(initialPosition, initialSpeed, obstacleSize, obstacleSize, p5.color('black'))
         obstacles.push(obstacle)
-    }
+    } 
     
     function newProjectile(position, speed, width, height) {
         var projectile = new Projectile(position, speed, width, height)

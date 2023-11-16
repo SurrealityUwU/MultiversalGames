@@ -19,6 +19,8 @@ export default function sketch(p5){
     const worldWidth = window.innerWidth;
     const worldHeight = window.innerHeight;
 
+    const showHitBoxes = true   ;
+
     const constPath = "http://127.0.0.1:3001/src/scroller_game/src/assets"
     let playerSprite = p5.loadImage(constPath + "/player/sprites/player1.png")
     let obstacleSprite = p5.loadImage(constPath + "/asteroids/asteroid.png")
@@ -36,8 +38,8 @@ export default function sketch(p5){
             this.agentProjectileSpeed = agentProjectileSpeed;
             this.hasShot = false;
             this.lastShot = 0; 
-            this.projectileWidth = 57
-            this.projectileHeight = 18
+            this.projectileWidth = 38
+            this.projectileHeight = 12
             this.healthHeight = 7
             this.healthYOffset = 15
             this.healthWidth = this.width
@@ -48,17 +50,20 @@ export default function sketch(p5){
             deltaLocation.mult(this.speed)  
             this.position.add(deltaLocation);
             for (var key in Direction) {
-            currentActionDict[key] = false
+                currentActionDict[key] = false
             }
         }
         
         draw() {
-            p5.fill(this.color)
+            if (showHitBoxes) {
+                p5.fill(this.color)
+            } 
             p5.rect(this.position.x, this.position.y, this.width, this.height)
             p5.image(playerSprite, this.position.x, this.position.y-10, this.width, this.height + 25);
-
+            
             p5.fill(p5.color("green"))
             p5.rect(this.position.x, this.position.y - this.healthYOffset, this.healthWidth, this.healthHeight)
+            p5.noFill()
             if(!this.hasShot) {
                 this.shoot();
                 this.hasShot = true;
@@ -115,7 +120,9 @@ export default function sketch(p5){
         }
 
         draw() {
-            p5.fill(p5.color(255, 0, 0, 255))
+            if (showHitBoxes) {
+                p5.fill(p5.color(255, 0, 0, 255))
+            }
             p5.rect(this.position.x, this.position.y, this.width, this.height)
             p5.image(projectileSprite, this.position.x, this.position.y, this.width, this.height);
         }
@@ -147,7 +154,9 @@ export default function sketch(p5){
         }
         
         draw() {
-            p5.fill(this.color)
+            if (showHitBoxes) {
+                p5.fill(this.color)
+            }
             p5.rect(this.position.x, this.position.y, this.width, this.height)
             p5.image(obstacleSprite, this.position.x, this.position.y, this.width, this.height);
         }
@@ -188,6 +197,7 @@ export default function sketch(p5){
     const agentHeight = 63
     const agentShootInterval = 500 //ms
     const agentProjectileSpeed = 10
+    const backgroundColor = p5.color(205);
     
     const nObstacles = 10
     const obstaclSizeMin = 10
@@ -202,6 +212,11 @@ export default function sketch(p5){
         p5.createCanvas(worldWidth, worldHeight );
         p5.rectMode(p5.CORNER); // for collision library    
         p5.ellipseMode(p5.CENTER); // for collision library
+
+        if (!showHitBoxes) {
+            p5.noStroke();
+            p5.noFill();
+        }
       
         for (var key in Direction) {
           currentActionDict[key] = false
@@ -237,19 +252,19 @@ export default function sketch(p5){
     }
 
     p5.draw = () => {
-        p5.background(225);
+        p5.background(backgroundColor);
   
         currentActionList = Object.values(currentActionDict)
-        obstacles.forEach(function(obstacle, index) {
+        obstacles.forEach(function(obstacle) {
             obstacle.update()
             obstacle.draw()
         });
 
-        hypotheses.forEach(function(hyp, index) {
+        hypotheses.forEach(function(hyp) {
             hyp.update(currentActionList)
         });
 
-        projectiles.forEach(function(proj, index) {
+        projectiles.forEach(function(proj) {
             proj.update()
             proj.draw()
         });
@@ -257,7 +272,6 @@ export default function sketch(p5){
         hypotheses = hypotheses.filter(hyp => !hyp.isOutOfCanvas())
         hypotheses = hypotheses.filter(hyp => !hyp.isDead())
       
-        obstacles.forEach(function(obs, index) {});
         obstacles = obstacles.filter(obs => !obs.isOutOfCanvas());
       
         if (obstacles.length < nObstacles) {
@@ -272,27 +286,15 @@ export default function sketch(p5){
             }
         });
       
-        hypotheses.forEach(function(hyp, index) {
+        hypotheses.forEach(function(hyp) {
             hyp.draw()
         });
 
 
-    }
-    
-    function randomColor() {
-        return p5.color(p5.random(255), p5.random(255), p5.random(255), p5.random(200, 255));
-    }
+    }   
 
     function agentColor() {
         return p5.color(255, 0, 0, 255);
-    }
-
-    function randomGridLocation() {
-        return p5.createVector(p5.floor(p5.random(p5.nCol)), p5.floor(p5.random(p5.nRow)));
-    }
-
-    function gridToCanvas(gridLocation) {
-        return gridLocation.copy().mult(p5.cellSize)
     }
 
     function delta_from_action_and_mapping(actionList, mapping) {

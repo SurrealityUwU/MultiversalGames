@@ -1,6 +1,6 @@
 import * as p5 from "p5";
 import { collideRectRect } from "p5collide"; 
-import playerSprite from "../assets/player/sprites/player1.png"
+
 
 export default function sketch(p5){
     const Direction = {
@@ -19,13 +19,17 @@ export default function sketch(p5){
     const worldWidth = window.innerWidth;
     const worldHeight = window.innerHeight;
 
+    const constPath = "http://127.0.0.1:3001/src/scroller_game/src/assets"
+    let playerSprite = p5.loadImage(constPath + "/player/sprites/player1.png")
+    let obstacleSprite = p5.loadImage(constPath + "/asteroids/asteroid.png")
+
     class Agent {
         constructor(initialPosition, mapping, speed, width, height, color) {
             this.position = initialPosition;
             this.mapping = mapping;
             this.speed = speed;
             this.width = width;
-            this.height = height;
+            this.height = height - 25;
             this.color = color;
         }
     
@@ -41,7 +45,7 @@ export default function sketch(p5){
         draw() {
             p5.fill(this.color)
             p5.rect(this.position.x, this.position.y, this.width, this.height)
-            p5.image(p5.loadImage(playerSprite), 0, 0);
+            p5.image(playerSprite, this.position.x, this.position.y-10, this.width, this.height + 25);
         }
         
         isOutOfCanvas() {
@@ -80,6 +84,7 @@ export default function sketch(p5){
         draw() {
             p5.fill(this.color)
             p5.rect(this.position.x, this.position.y, this.width, this.height)
+            p5.image(obstacleSprite, this.position.x, this.position.y, this.width, this.height);
         }
         
         isOutOfCanvas() {
@@ -113,25 +118,21 @@ export default function sketch(p5){
     var obstacles = []
     
     const agentSpeed = 5
-    const agentSize = 10
+    const agentWidth = 78
+    const agentHeight = 63
     
     const nObstacles = 10
-    const obstacleSize = 20
-    const obstacleMaxSpeed = 3.5
+    const obstaclSizeMin = 10
+    const obstacleSizeMax = 30
+    const obstacleSpeedMin = 2
+    const obstacleSpeedMax = 4
     console.log("GLOBAl")
 
     let img;
-    p5.preload = () => {
-    }
-    
     p5.setup = () => {
         p5.createCanvas(worldWidth, worldHeight );
-        p5.rectMode(p5.CORNER); // for collision library
+        p5.rectMode(p5.CORNER); // for collision library    
         p5.ellipseMode(p5.CENTER); // for collision library
-        
-        img = p5.loadImage('player1.png')
-        
-        p5.image(img, 0, 0, 100, 100);
       
         for (var key in Direction) {
           currentActionDict[key] = false
@@ -141,22 +142,21 @@ export default function sketch(p5){
         allMapping.push(...permutations([vector_up2, vector_down2]))
       
         allMapping.forEach(function(mapping, index) {
-          var agent = new Agent(p5.createVector(worldWidth/8, worldHeight/2), mapping, agentSpeed, agentSize, agentSize, agentColor())
+          var agent = new Agent(p5.createVector(worldWidth/8, worldHeight/2), mapping, agentSpeed, agentWidth, agentHeight, agentColor())
           hypotheses.push(agent)
         });
         
         for (const x of Array(nObstacles).keys()) {
-          var initialPosition = p5.createVector((worldWidth-obstacleSize), (worldHeight-obstacleSize)*Math.random())
-          var initialSpeed = p5.createVector(obstacleMaxSpeed*(Math.random() * -0.5  - 0.5) , 0)
-          var obstacle = new Obstacle(initialPosition, initialSpeed, obstacleSize, obstacleSize, p5.color('black'))
-          obstacles.push(obstacle)
+            newObstacle();
         }
         p5.frameRate(30);
     }
 
     function newObstacle() {
+        let obstacleSize =  Math.random() * obstacleSizeMax + obstaclSizeMin;
+        let obstacleSpeed =  Math.random() * obstacleSpeedMax + obstacleSpeedMin;
         var initialPosition = p5.createVector((worldWidth-obstacleSize), (worldHeight-obstacleSize)*Math.random())
-        var initialSpeed = p5.createVector(obstacleMaxSpeed*(Math.random() * -0.5  - 0.5) , 0)
+        var initialSpeed = p5.createVector(obstacleSpeed*(Math.random() * -0.5  - 0.5) , 0)
         var obstacle = new Obstacle(initialPosition, initialSpeed, obstacleSize, obstacleSize, p5.color('black'))
         obstacles.push(obstacle)
     }
@@ -165,7 +165,6 @@ export default function sketch(p5){
         p5.background(225);
   
         currentActionList = Object.values(currentActionDict)
-      
         obstacles.forEach(function(obstacle, index) {
             obstacle.update()
             obstacle.draw()

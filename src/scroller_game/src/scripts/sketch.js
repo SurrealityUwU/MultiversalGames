@@ -4,9 +4,10 @@ import { collideRectRect } from "p5collide";
 
 export default function sketch(p5){
     const Direction = {
-        UP: "UP",
         DOWN: "DOWN",
+        UP: "UP",
     }
+
 
     var currentActionDict = {}
     var currentActionList = []
@@ -46,9 +47,23 @@ export default function sketch(p5){
         }
     
         update(actionList) {
+
+            // if (this.isCollidingWithWall()) {
+                // console.log(actionList)
+                // currentActionDict[this.isCollidingWithWall()] = false;
+                // actionList = Object.values(currentActionDict)
+                // actionList[0] = false;  
+            // }
             var deltaLocation = delta_from_action_and_mapping(actionList, this.mapping)
             deltaLocation.mult(this.speed)  
-            this.position.add(deltaLocation);
+            console.log(deltaLocation)
+            if (this.position.y + deltaLocation["y"] < 0) {
+                this.position.y = 0
+            } else if (this.position.y + this.height + deltaLocation["y"] > worldHeight) {
+                this.position.y = worldHeight - this.height
+            } else {
+                this.position.add(deltaLocation);
+            }
             for (var key in Direction) {
                 currentActionDict[key] = false
             }
@@ -88,15 +103,15 @@ export default function sketch(p5){
             return this.healthWidth <= 0 ? true : false
         }
 
-        isOutOfCanvas() {
-            if (this.position.x > worldWidth ||
-            this.position.x < 0 ||
-            this.position.y > worldHeight ||
-            this.position.y < 0) {
-            return true
-            } else {
-            return false
+        isCollidingWithWall() {
+            if (this.position.y <= 0) {
+                this.position.y = 0
+                return Direction.UP;
+            } else if (this.position.y + this.height >= worldHeight) {
+                this.position.y = worldHeight - this.height
+                return Direction.DOWN
             }
+            return false;
         }
         
         isCollidingWithObstacle(obstacle) {
@@ -192,7 +207,7 @@ export default function sketch(p5){
     var obstacles = []
     var projectiles= []
     
-    const agentSpeed = 5
+    const agentSpeed = 10
     const agentWidth = 80
     const agentHeight = 63
     const agentShootInterval = 500 //ms
@@ -269,7 +284,6 @@ export default function sketch(p5){
             proj.draw()
         });
       
-        hypotheses = hypotheses.filter(hyp => !hyp.isOutOfCanvas())
         hypotheses = hypotheses.filter(hyp => !hyp.isDead())
       
         obstacles = obstacles.filter(obs => !obs.isOutOfCanvas());
@@ -288,6 +302,7 @@ export default function sketch(p5){
       
         hypotheses.forEach(function(hyp) {
             hyp.draw()
+            // hyp.isCollidingWithWall()
         });
 
 
@@ -299,7 +314,7 @@ export default function sketch(p5){
 
     function delta_from_action_and_mapping(actionList, mapping) {
         var delta_pos = p5.createVector(0, 0);
-        for (const [index, isPressed] of currentActionList.entries()) {
+        for (const [index, isPressed] of actionList.entries()) {
             if (isPressed) {
                 delta_pos.add(mapping[index])
             }

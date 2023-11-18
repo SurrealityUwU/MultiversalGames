@@ -22,11 +22,14 @@ export default function sketch(p5){
     const showHitBoxes = true;
 
     const constPath = "http://127.0.0.1:3001/src/scroller_game/src/assets"
+    let background = p5.loadImage(constPath + "/background/bg-preview-big.png")
     let playerSprite = p5.loadImage(constPath + "/player/sprites/player1.png")
     let obstacleSprite = p5.loadImage(constPath + "/asteroids/asteroid.png")
     let projectileSprite = p5.loadImage(constPath + "/shoot/shoot1.png")
     let boss1Path = constPath + "/boss1/boss" 
     let boss1MaxIndex = 2;
+
+
 
     class Agent {
         constructor(initialPosition, mapping, speed, width, height, color, agentShootInterval, agentProjectileSpeed) {
@@ -181,6 +184,10 @@ export default function sketch(p5){
             this.last = 0;
             this.width = width;
             this.height = height;
+
+            this.healthWidth = 1300;
+            this.healthHeight = 20;
+            this.healthPos = p5.createVector(worldWidth / 2 - this.healthWidth / 2, worldHeight / 15 - this.healthHeight / 2)
         }
 
         addAnimation(path, maxIndex) {
@@ -191,7 +198,9 @@ export default function sketch(p5){
         }
 
         showHealthBar() {
-            
+            p5.fill(p5.color("red"))
+            p5.rect(this.healthPos.x, this.healthPos.y, this.healthWidth, this.healthHeight)
+            p5.noFill()
         }
     
         draw() {
@@ -306,7 +315,7 @@ export default function sketch(p5){
     }
 
     p5.draw = () => {
-        p5.background(backgroundColor);
+        p5.background(background);
 
         boss1.draw();
         currentActionList = Object.values(currentActionDict)

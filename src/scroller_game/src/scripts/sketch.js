@@ -1,16 +1,15 @@
 import * as p5 from "p5";
 import { collideRectRect } from "p5collide"; 
 
-
 export default function sketch(p5){
     const Direction = {
         DOWN: "DOWN",
         UP: "UP",
     }
 
-
     var currentActionDict = {}
     var currentActionList = []
+    
     
     const vector_up = new p5.constructor.Vector(0, 1)
     const vector_down = new p5.constructor.Vector(0, -1)
@@ -20,12 +19,14 @@ export default function sketch(p5){
     const worldWidth = window.innerWidth;
     const worldHeight = window.innerHeight;
 
-    const showHitBoxes = true   ;
+    const showHitBoxes = true;
 
     const constPath = "http://127.0.0.1:3001/src/scroller_game/src/assets"
     let playerSprite = p5.loadImage(constPath + "/player/sprites/player1.png")
     let obstacleSprite = p5.loadImage(constPath + "/asteroids/asteroid.png")
     let projectileSprite = p5.loadImage(constPath + "/shoot/shoot1.png")
+    let boss1Path = constPath + "/boss1/boss" 
+    let boss1MaxIndex = 2;
 
     class Agent {
         constructor(initialPosition, mapping, speed, width, height, color, agentShootInterval, agentProjectileSpeed) {
@@ -47,16 +48,8 @@ export default function sketch(p5){
         }
     
         update(actionList) {
-
-            // if (this.isCollidingWithWall()) {
-                // console.log(actionList)
-                // currentActionDict[this.isCollidingWithWall()] = false;
-                // actionList = Object.values(currentActionDict)
-                // actionList[0] = false;  
-            // }
             var deltaLocation = delta_from_action_and_mapping(actionList, this.mapping)
             deltaLocation.mult(this.speed)  
-            console.log(deltaLocation)
             if (this.position.y + deltaLocation["y"] < 0) {
                 this.position.y = 0
             } else if (this.position.y + this.height + deltaLocation["y"] > worldHeight) {
@@ -103,16 +96,6 @@ export default function sketch(p5){
             return this.healthWidth <= 0 ? true : false
         }
 
-        isCollidingWithWall() {
-            if (this.position.y <= 0) {
-                this.position.y = 0
-                return Direction.UP;
-            } else if (this.position.y + this.height >= worldHeight) {
-                this.position.y = worldHeight - this.height
-                return Direction.DOWN
-            }
-            return false;
-        }
         
         isCollidingWithObstacle(obstacle) {
             return collideRectRect(this.position.x, this.position.y, 
@@ -188,6 +171,49 @@ export default function sketch(p5){
         }
     }
 
+    class AnimatedSprite {
+        constructor(position, width, height, interval) {
+            this.position = position;
+            this.animation = [];
+            this.interval = interval;
+            this.index = 0;
+            this.bool = false;
+            this.last = 0;
+            this.width = width;
+            this.height = height;
+        }
+
+        addAnimation(path, maxIndex) {
+            for (let i = 1; i <= maxIndex; i++) {
+                let sprite = p5.loadImage(path + i + ".png")
+                this.animation.push(sprite)
+            }
+        }
+
+        showHealthBar() {
+            
+        }
+    
+        draw() {
+            this.showHealthBar();
+
+            if(!this.bool) {
+                this.bool = true;
+                this.index += 1;
+                this.last = p5.millis();
+            }
+            else {
+                if(p5.millis() - this.last > 500) {
+                    this.bool = false;
+                }
+            }
+            let index = Math.floor(this.index) % this.animation.length;
+            // console.log(index)
+            console.log(this.animation[index])
+            p5.image(this.animation[index], this.position.x, this.position.y, this.width, this.height);
+        }
+    }
+
     const permutations = arr => {
         if (arr.length <= 2) return arr.length === 2 ? [arr, [arr[1], arr[0]]] : arr;
         return arr.reduce(
@@ -220,13 +246,26 @@ export default function sketch(p5){
     const obstacleSpeedMin = 2
     const obstacleSpeedMax = 4
 
+    var boss1;
+
+    const bossWidth = 700
+    const bossHeight = 700
+    const bossAnimationInterval = 500 //ms
+
+
     p5.updateWithProps = props => {
     };
+
+    p5.preload = () => {
+        boss1 = new AnimatedSprite(p5.createVector(worldWidth - bossWidth * 2 / 3, worldHeight / 2 - bossHeight / 2), bossWidth, bossHeight, bossAnimationInterval);
+        boss1.addAnimation(boss1Path, boss1MaxIndex)
+    }
 
     p5.setup = () => {
         p5.createCanvas(worldWidth, worldHeight );
         p5.rectMode(p5.CORNER); // for collision library    
         p5.ellipseMode(p5.CENTER); // for collision library
+
 
         if (!showHitBoxes) {
             p5.noStroke();
@@ -268,7 +307,8 @@ export default function sketch(p5){
 
     p5.draw = () => {
         p5.background(backgroundColor);
-  
+
+        boss1.draw();
         currentActionList = Object.values(currentActionDict)
         obstacles.forEach(function(obstacle) {
             obstacle.update()
@@ -302,7 +342,6 @@ export default function sketch(p5){
       
         hypotheses.forEach(function(hyp) {
             hyp.draw()
-            // hyp.isCollidingWithWall()
         });
 
 

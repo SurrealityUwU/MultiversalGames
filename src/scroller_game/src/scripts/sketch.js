@@ -23,7 +23,9 @@ export default function sketch(p5){
 
     const constPath = "http://127.0.0.1:3001/src/scroller_game/src/assets"
     let background = p5.loadImage(constPath + "/background/bg-preview-big.png")
-    let playerSprite = p5.loadImage(constPath + "/player/sprites/player1.png")
+    let playerSpriteStraight = p5.loadImage(constPath + "/player/sprites/player1.png")
+    let playerSpriteUp = p5.loadImage(constPath + "/player/sprites/player3.png")
+    let playerSpriteDown = p5.loadImage(constPath + "/player/sprites/player2.png")
     let obstacleSprite = p5.loadImage(constPath + "/asteroids/asteroid.png")
     let projectileSprite = p5.loadImage(constPath + "/shoot/shoot1.png")
     let boss1Path = constPath + "/boss1/boss" 
@@ -48,20 +50,55 @@ export default function sketch(p5){
             this.healthHeight = 7
             this.healthYOffset = 15
             this.healthWidth = this.width
+            this.playerSprite = playerSpriteStraight;
+            this.vel = 3;
+            this.actionDict = {}
         }
     
         update(actionList) {
+            for (var key in currentActionDict) {
+                this.actionDict[key] = currentActionDict[key];
+                currentActionDict[key] = 0
+            }
             var deltaLocation = delta_from_action_and_mapping(actionList, this.mapping)
-            deltaLocation.mult(this.speed)  
+            // deltaLocation.mult(this.speed)  
+            // console.log(deltaLocation)
+            
+            var moveAmount = Math.abs(deltaLocation["y"]/4);
+            if (deltaLocation["y"] > moveAmount) {
+                deltaLocation["y"] = moveAmount;
+            } else if (deltaLocation["y"] < -moveAmount) {
+                deltaLocation["y"] = -moveAmount;
+            } else {
+                moveAmount = deltaLocation["y"];
+            } 
+
+            // console.log(deltaLocation )
+
             if (this.position.y + deltaLocation["y"] < 0) {
                 this.position.y = 0
             } else if (this.position.y + this.height + deltaLocation["y"] > worldHeight) {
                 this.position.y = worldHeight - this.height
             } else {
                 this.position.add(deltaLocation);
+            } 
+
+            if (deltaLocation["y"] < 0) {
+                this.playerSprite = playerSpriteUp;
+            } else if (deltaLocation["y"] > 0) { 
+                this.playerSprite = playerSpriteDown
+            } else {
+                this.playerSprite = playerSpriteStraight
             }
+
+            // console.log(currentActionDict)
             for (var key in Direction) {
-                currentActionDict[key] = false
+                if (this.actionDict[key] > 0 && this.actionDict[key] >= moveAmount) {
+                    this.actionDict[key] -= moveAmount
+                } else {
+                    this.actionDict[key] = 0
+                }
+                // currentActionDict[key] = 0
             }
         }
         
@@ -70,7 +107,7 @@ export default function sketch(p5){
                 p5.fill(this.color)
             } 
             p5.rect(this.position.x, this.position.y, this.width, this.height)
-            p5.image(playerSprite, this.position.x, this.position.y-10, this.width, this.height + 25);
+            p5.image(this.playerSprite, this.position.x, this.position.y-10, this.width, this.height + 25);
             
             p5.fill(p5.color("green"))
             p5.rect(this.position.x, this.position.y - this.healthYOffset, this.healthWidth, this.healthHeight)
@@ -138,16 +175,21 @@ export default function sketch(p5){
             return false
             }
         }
+        isCollidingWithObstacle(obstacle) {
+            return collideRectRect(this.position.x, this.position.y, 
+                                    this.width, this.height, 
+                                    obstacle.position.x, obstacle.position.y, 
+                                    obstacle.width, obstacle.height);
+        }
     }
       
 
     class Obstacle {
-        constructor(initialPosition, intitialSpeed, width, height, color) {
+        constructor(initialPosition, intitialSpeed, width, height) {
             this.position = initialPosition;
             this.speed = intitialSpeed;
             this.width = width;
             this.height = height;
-            this.color = color;
         }
 
         update() {
@@ -156,7 +198,7 @@ export default function sketch(p5){
         
         draw() {
             if (showHitBoxes) {
-                p5.fill(this.color)
+                p5.fill(p5.color("red"))
             }
             p5.rect(this.position.x, this.position.y, this.width, this.height)
             p5.image(obstacleSprite, this.position.x, this.position.y, this.width, this.height);
@@ -202,6 +244,15 @@ export default function sketch(p5){
             p5.rect(this.healthPos.x, this.healthPos.y, this.healthWidth, this.healthHeight)
             p5.noFill()
         }
+        
+        takeDamage(dmg) {
+            this.healthWidth -= dmg;
+        }
+        
+        isDead() {
+            return this.healthWidth <= 0 ? true : false
+        }
+
     
         draw() {
             this.showHealthBar();
@@ -217,10 +268,15 @@ export default function sketch(p5){
                 }
             }
             let index = Math.floor(this.index) % this.animation.length;
-            // console.log(index)
-            console.log(this.animation[index])
+
+            if (showHitBoxes) {
+                p5.fill(p5.color("red"))
+            }
+            p5.rect(this.position.x, this.position.y, this.width, this.height)
             p5.image(this.animation[index], this.position.x, this.position.y, this.width, this.height);
         }
+
+
     }
 
     const permutations = arr => {
@@ -247,13 +303,14 @@ export default function sketch(p5){
     const agentHeight = 63
     const agentShootInterval = 500 //ms
     const agentProjectileSpeed = 10
+    const agentDamage = 10
     const backgroundColor = p5.color(205);
     
     const nObstacles = 10
-    const obstaclSizeMin = 10
-    const obstacleSizeMax = 30
-    const obstacleSpeedMin = 2
-    const obstacleSpeedMax = 4
+    const obstaclSizeMin = 15
+    const obstacleSizeMax = 40
+    const obstacleSpeedMin = 5
+    const obstacleSpeedMax = 8 
 
     var boss1;
 
@@ -283,17 +340,17 @@ export default function sketch(p5){
       
         for (var key in Direction) {
           currentActionDict[key] = false
-        }
+        } 
 
         allMapping = permutations([vector_up, vector_down])
         allMapping.push(...permutations([vector_up2, vector_down2]))
-      
+       
         allMapping.forEach(function(mapping, index) {
           var agent = new Agent(p5.createVector(worldWidth/8, worldHeight/2), mapping, agentSpeed, agentWidth, agentHeight, agentColor(), agentShootInterval, agentProjectileSpeed)
           hypotheses.push(agent)
         });
         
-
+        
         for (const x of Array(nObstacles).keys()) {
             newObstacle();
         }
@@ -317,7 +374,6 @@ export default function sketch(p5){
     p5.draw = () => {
         p5.background(background);
 
-        boss1.draw();
         currentActionList = Object.values(currentActionDict)
         obstacles.forEach(function(obstacle) {
             obstacle.update()
@@ -332,9 +388,14 @@ export default function sketch(p5){
             proj.update()
             proj.draw()
         });
-      
+        
+        var hitBoss = projectiles.filter(proj => proj.isCollidingWithObstacle(boss1))
+        hitBoss.forEach(() => {boss1.takeDamage(agentDamage )})
+        projectiles = projectiles.filter(proj => !proj.isCollidingWithObstacle(boss1));
+
+        if (!boss1.isDead())
+            boss1.draw();
         hypotheses = hypotheses.filter(hyp => !hyp.isDead())
-      
         obstacles = obstacles.filter(obs => !obs.isOutOfCanvas());
       
         if (obstacles.length < nObstacles) {
@@ -352,8 +413,6 @@ export default function sketch(p5){
         hypotheses.forEach(function(hyp) {
             hyp.draw()
         });
-
-
     }   
 
     function agentColor() {
@@ -362,9 +421,12 @@ export default function sketch(p5){
 
     function delta_from_action_and_mapping(actionList, mapping) {
         var delta_pos = p5.createVector(0, 0);
-        for (const [index, isPressed] of actionList.entries()) {
-            if (isPressed) {
-                delta_pos.add(mapping[index])
+        for (const [index, val] of actionList.entries()) {
+            if (val) {
+                var temp = p5.createVector(0, 0);
+                temp.add(mapping[index])
+                temp.mult(val)
+                delta_pos.add(temp)
             }
         }
         return delta_pos
@@ -372,9 +434,11 @@ export default function sketch(p5){
 
     p5.mouseWheel = (event) => {
         if (event.delta > 0) {
-            currentActionDict[Direction.UP] = true
+            currentActionDict[Direction.UP] += agentSpeed
+            currentActionDict[Direction.DOWN] = 0
         } else if (event.delta < 0) {
-            currentActionDict[Direction.DOWN] = true
+            currentActionDict[Direction.UP] = 0
+            currentActionDict[Direction.DOWN] += agentSpeed
         }
     }
 }

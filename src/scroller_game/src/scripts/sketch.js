@@ -28,6 +28,7 @@ export default function sketch(p5){
     let playerSpriteDown = p5.loadImage(constPath + "/player/sprites/player2.png")
     let obstacleSprite = p5.loadImage(constPath + "/asteroids/asteroid.png")
     let projectileSprite = p5.loadImage(constPath + "/shoot/shoot1.png")
+    let projectileSprite2 = p5.loadImage(constPath + "/shoot/shoot2.png")
     let boss1Path = constPath + "/boss1/boss" 
     let boss1MaxIndex = 2;
 
@@ -61,7 +62,7 @@ export default function sketch(p5){
                 currentActionDict[key] = 0
             }
             var deltaLocation = delta_from_action_and_mapping(actionList, this.mapping)
-            // deltaLocation.mult(this.speed)  
+            // deltaLocation.mult(this.speed)    
             // console.log(deltaLocation)
             
             var moveAmount = Math.abs(deltaLocation["y"]/4);
@@ -185,11 +186,12 @@ export default function sketch(p5){
       
 
     class Obstacle {
-        constructor(initialPosition, intitialSpeed, width, height) {
+        constructor(initialPosition, intitialSpeed, width, height, sprite) {
             this.position = initialPosition;
             this.speed = intitialSpeed;
             this.width = width;
             this.height = height;
+            this.sprite = sprite
         }
 
         update() {
@@ -201,7 +203,9 @@ export default function sketch(p5){
                 p5.fill(p5.color("red"))
             }
             p5.rect(this.position.x, this.position.y, this.width, this.height)
-            p5.image(obstacleSprite, this.position.x, this.position.y, this.width, this.height);
+            if (this.sprite) {
+                p5.image(this.sprite, this.position.x, this.position.y, this.width, this.height);
+            }
         }
         
         isOutOfCanvas() {
@@ -230,6 +234,13 @@ export default function sketch(p5){
             this.healthWidth = 1300;
             this.healthHeight = 20;
             this.healthPos = p5.createVector(worldWidth / 2 - this.healthWidth / 2, worldHeight / 15 - this.healthHeight / 2)
+ 
+            this.attacks = []
+            this.attackWarningCount = 0;
+            this.attackWarningInterval = 1000;
+            this.bool = false;
+            
+            this.lastWarning = 3000;
         }
 
         addAnimation(path, maxIndex) {
@@ -253,10 +264,48 @@ export default function sketch(p5){
             return this.healthWidth <= 0 ? true : false
         }
 
-    
-        draw() {
-            this.showHealthBar();
+        update() {
+            this.attacks.forEach((atk) => {
+                atk.draw();
+                atk.update();
+            })
+        }
+        
+        attackWarning() {
+            if(p5.millis() > this.lastWarning && p5.millis() < this.lastWarning +  500 && this.attackWarningCount < 3) {
+                console.log(this.attackWarningCount)
+                p5.fill(p5.color(255, 0, 0, 100)) 
+                p5.rect(this.position.x + this.width / 2, this.position.y + this.height / 2 - 50, -worldWidth, 100)
+                p5.noFill()
+            }
+            else { 
+                if(p5.millis() - this.lastWarning > this.attackWarningInterval) {
+                    this.lastWarning = p5.millis();
+                    this.attackWarningCount += 1;
+                } 
+            } 
 
+            // p5.fill(p5.color(255, 0, 0, 100)) 
+            // p5.rect(this.position.x + this.width / 2, this.position.y + this.height / 2 - 50, -worldWidth, 100)
+
+        }
+
+        attack() {
+            var o = new Obstacle(p5.createVector(this.position.x + this.width / 2, this.position.y + this.height / 2 - 50), -50, worldWidth, 100, projectileSprite2 )
+            this.attacks.push(o); 
+        }
+
+    
+        draw() { 
+            this.showHealthBar();
+            
+            this.attackWarning();
+            
+            if(p5.millis() > 6000 && !this.once) {
+                this.attack();
+                this.once = true; 
+            }
+            
             if(!this.bool) {
                 this.bool = true;
                 this.index += 1;
@@ -306,7 +355,7 @@ export default function sketch(p5){
     const agentDamage = 10
     const backgroundColor = p5.color(205);
     
-    const nObstacles = 10
+    const nObstacles = 15
     const obstaclSizeMin = 15
     const obstacleSizeMax = 40
     const obstacleSpeedMin = 5
@@ -362,7 +411,7 @@ export default function sketch(p5){
         let obstacleSpeed =  Math.random() * obstacleSpeedMax + obstacleSpeedMin;
         var initialPosition = p5.createVector((worldWidth-obstacleSize), (worldHeight-obstacleSize)*Math.random())
         var initialSpeed = p5.createVector(obstacleSpeed*(Math.random() * -0.5  - 0.5) , 0)
-        var obstacle = new Obstacle(initialPosition, initialSpeed, obstacleSize, obstacleSize, p5.color('black'))
+        var obstacle = new Obstacle(initialPosition, initialSpeed, obstacleSize, obstacleSize, obstacleSprite)
         obstacles.push(obstacle)
     } 
     
@@ -393,20 +442,27 @@ export default function sketch(p5){
         hitBoss.forEach(() => {boss1.takeDamage(agentDamage )})
         projectiles = projectiles.filter(proj => !proj.isCollidingWithObstacle(boss1));
 
-        if (!boss1.isDead())
-            boss1.draw();
+        if (!boss1.isDead()) {
+            boss1.update();
+            boss1.draw(); 
+        }
         hypotheses = hypotheses.filter(hyp => !hyp.isDead())
         obstacles = obstacles.filter(obs => !obs.isOutOfCanvas());
       
         if (obstacles.length < nObstacles) {
-            newObstacle();
+            newObstacle();  
         }
+
+        boss1.attacks.forEach((atk) => {
+            var hitHypo = hypotheses.filter(hyp => hyp.isCollidingWithObstacle(atk));
+            hitHypo.forEach(hyp => {hyp.takeDamage(5)}); 
+        })
 
         obstacles.forEach(function(obstacle, index) {
             var hitHypo = hypotheses.filter(hyp => hyp.isCollidingWithObstacle(obstacle));
             hitHypo.forEach((hyp,) => {hyp.takeDamage(20)});
             if (hitHypo.length > 0) {
-                obstacles.splice(index, 1);
+                obstacles.splice(index, 1); 
             }
         });
       

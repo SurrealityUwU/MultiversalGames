@@ -371,15 +371,16 @@ export default function sketch(p5){
     p5.updateWithProps = props => {
     };
 
-    p5.preload = () => {
-        boss1 = new AnimatedSprite(p5.createVector(worldWidth - bossWidth * 2 / 3, worldHeight / 2 - bossHeight / 2), bossWidth, bossHeight, bossAnimationInterval);
-        boss1.addAnimation(boss1Path, boss1MaxIndex)
-    }
+    // p5.preload = () => {
+    // }
 
     p5.setup = () => {
         p5.createCanvas(worldWidth, worldHeight );
         p5.rectMode(p5.CORNER); // for collision library    
         p5.ellipseMode(p5.CENTER); // for collision library
+        
+        boss1 = new AnimatedSprite(p5.createVector(worldWidth - bossWidth * 2 / 3, worldHeight / 2 - bossHeight / 2), bossWidth, bossHeight, bossAnimationInterval);
+        boss1.addAnimation(boss1Path, boss1MaxIndex)
 
 
         if (!showHitBoxes) {
